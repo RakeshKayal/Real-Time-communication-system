@@ -14,7 +14,9 @@ import Com.test.Repo.userRegistrationRepo;
 import Com.test.Service.GroupMessageService;
 import Com.test.Service.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -51,6 +53,7 @@ public class messageController {
     }
 
     @MessageMapping("/sendMessage")
+    @Cacheable
     public void sendToGroup(GroupMsgDTO dto) {
 
         System.out.println("Received DTO: " + dto);
@@ -96,10 +99,10 @@ public class messageController {
             throw new RuntimeException("not found sender and receiver");
         }
 
-        boolean isFriend = friendRequestRepo.findAcceptedRequestBetweenUsers(sender.getId(), receiver.getId()).isPresent();
-        if (!isFriend) {
-            throw new RuntimeException("Cannot send message. Friend request not accepted.");
-        }
+//        boolean isFriend = friendRequestRepo.findAcceptedRequestBetweenUsers(sender.getId(), receiver.getId()).isPresent();
+//        if (!isFriend) {
+//            throw new RuntimeException("Cannot send message. Friend request not accepted.");
+//        }
 
         System.out.println("sender : "  +sender.getName());
         System.out.println("receiver : "+receiver.getName());
@@ -125,5 +128,20 @@ public class messageController {
 
 
 
+    }
+
+    @MessageMapping("/notify")
+    public void notifyUser(@Payload Map<String, Object> notification) {
+        Object target = notification.get("to");
+
+        if (target == null || target.toString().isBlank()) {
+            throw new IllegalArgumentException("Notification recipient is required");
+        }
+
+        messagingTemplate.convertAndSendToUser(
+                target.toString(),
+                "/queue/notifications",
+                notification
+        );
     }
 }
